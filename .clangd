@@ -1,0 +1,16 @@
+CompileFlags:
+  # Use the PlatformIO xtensa cross-compiler so clangd can query it for the
+  # toolchain's built-in C/C++ system include paths (libstdc++, newlib, etc.).
+  # These are NOT listed in compile_commands.json, so without this clangd
+  # cannot find headers like <cassert> / <cstdint>.
+  # Requires clangd to be started with a matching --query-driver allowlist
+  # (configured in the Neovim clangd setup).
+  Compiler: /home/rotarymars/.platformio/packages/toolchain-xtensa-esp32/bin/xtensa-esp32-elf-g++
+  # Drop GCC/xtensa-only flags that clang's frontend doesn't understand,
+  # so they don't show up as "unknown argument" diagnostics.
+  Remove:
+    - -mlongcalls
+    - -fno-tree-switch-conversion
+    - -freorder-blocks
+    - -fstrict-volatile-bitfields
+    - -fno-jump-tables
