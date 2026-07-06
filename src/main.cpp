@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <cassert>
+#include <SMS_STS.h>
 #include "armio.hpp"
 #include "bnoio.hpp"
 #include "motorio.hpp"
@@ -7,29 +8,61 @@
 #include "serialio.hpp"
 SerialIO serial;
 
+constexpr int button_pin = 25;
+constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
+constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
+
+// Feetech STS3032 serial-bus servo IDs driving the four wheels.
+const uint8_t motors[] = {1, 2, 3, 4};
+constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
+
+SMS_STS sts3032;
+
 void setup() {
   serial.init();
+  serial.sendMessage(Message(0,"HI"));
   pinMode(button_pin, INPUT);
+
+  Serial2.begin(1000000, SERIAL_8N1, PIN_RX, PIN_TX);  // servo bus @ 1 Mbaud
+  sts3032.pSerial = &Serial2;
+  delay(50);  // to wait for initialization of sts3032
+
+  // Put every servo on the bus into continuous-rotation (wheel) mode.
+  // WheelMode() writes SMS_STS_MODE to EEPROM, so unlock/lock around it.
+  for (size_t i = 0; i < motor_count; ++i) {
+    uint8_t id = motors[i];
+    sts3032.unLockEprom(id);
+    sts3032.EnableTorque(id, 1);
+    sts3032.WheelMode(id);
+    sts3032.LockEprom(id);
+  }
 }
 
 void loop() {
+  // Heartbeat: prints once a second no matter what, so you can confirm the USB
+  // serial link works without sending anything. If you never see TICK, the
+  // problem is the monitor/port/baud, not the command parsing.
+  static unsigned long last_beat = 0;
+  static uint32_t beats = 0;
+  if (millis() - last_beat >= 1000) {
+    last_beat = millis();
+    serial.sendMessage(Message(0, "TICK " + String(beats++)));
+  }
+
   Message msg = serial.receiveMessage();
   String message = msg.getMessage();
 
+  // Echo whatever arrived so you can see exactly how it was parsed: the leading
+  // integer becomes the id, everything after the first space is the message.
+  if (message.length() > 0) {
+    serial.sendMessage(Message(msg.getId(), "RX [" + message + "]"));
+  }
+
   if (message.startsWith("MOTOR ")) {
-    const char* motor_data = message.c_str() + 6;  // Skip "MOTOR "
-    int temp_values[2];
-    if (parseMotorCommand(motor_data, temp_values, 2)) {
-      // TODO: Fix legacy code for assuming 2 motor values
-      {
-        MutexGuard guard(motor_sem);
-        tyre_values[0] = temp_values[0];
-        tyre_values[1] = 1500 - (temp_values[1] - 1500);
-        tyre_values[2] = tyre_values[0];
-        tyre_values[3] = tyre_values[1];
-      }
-      snprintf(response, sizeof(response), "OK %d %d %d %d", tyre_values[0], tyre_values[1],
-               tyre_values[2], tyre_values[3]);
-      serial.sendMessage(Message(msg.getId(), String(response)));
+    // Drive every wheel at a fixed test speed for now.
+    for (size_t i = 0; i < motor_count; ++i) {
+      sts3032.WriteSpe(motors[i], 1000);
     }
+    serial.sendMessage(Message(0,"HI"));
+  }
 }
