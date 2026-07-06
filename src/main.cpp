@@ -3,12 +3,19 @@
 #include <SMS_STS.h>
 #include "armio.hpp"
 #include "bnoio.hpp"
+#include "buzzerio.hpp"
 #include "motorio.hpp"
 #include "mutex_guard.hpp"
 #include "serialio.hpp"
 SerialIO serial;
 
 constexpr int button_pin = 25;
+
+// Passive speaker/buzzer on GPIO2, driven by LEDC channel 5 (0-3 belong to
+// MOTORIO, 8-9 to ARMIO, so 4-7 are free).
+constexpr std::int8_t buzzer_pin = 2;
+constexpr int buzzer_channel = 5;
+BUZZERIO buzzer(buzzer_pin, buzzer_channel);
 constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
 constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 
@@ -22,6 +29,7 @@ void setup() {
   serial.init();
   serial.sendMessage(Message(0,"HI"));
   pinMode(button_pin, INPUT);
+  buzzer.init_pwm();
 
   Serial2.begin(1000000, SERIAL_8N1, PIN_RX, PIN_TX);  // servo bus @ 1 Mbaud
   sts3032.pSerial = &Serial2;
@@ -64,5 +72,11 @@ void loop() {
       sts3032.WriteSpe(motors[i], 1000);
     }
     serial.sendMessage(Message(0,"HI"));
+  }
+
+  if (message.startsWith("buzz")) {
+    // Sound the speaker: 1kHz tone for 300ms.
+    buzzer.beep(1000, 300);
+    serial.sendMessage(Message(msg.getId(), "BUZZ"));
   }
 }
