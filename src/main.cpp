@@ -1,6 +1,7 @@
 #include <Arduino.h>
-#include <cassert>
 #include <SMS_STS.h>
+#include <VL53L0X.h>
+#include <cassert>
 #include "armio.hpp"
 #include "bnoio.hpp"
 #include "buzzerio.hpp"
@@ -27,9 +28,30 @@ SMS_STS sts3032;
 
 BNOIO bnoio;
 
+uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
+constexpr size_t xShut_count = sizeof(xShutPins) / sizeof(xShutPins[0]);
+
+// Release XSHUT by going high-impedance and letting the board pull-up raise
+// it; XSHUT must never be driven HIGH directly.
+static void releaseXshut(uint8_t pin) {
+  pinMode(pin, INPUT);
+  delay(10);
+}
+
+static void holdXshut(uint8_t pin) {
+  pinMode(pin, OUTPUT);
+  digitalWrite(pin, LOW);
+}
+
+// ToF[0] is the always-on sensor (no XSHUT wire); ToF[i] for i >= 1 is the
+// sensor on xShutPins[i - 1].
+constexpr size_t ToF_count = 7;
+static_assert(ToF_count == xShut_count + 1, "Mismatch between ToF_count and xShut_count");
+VL53L0X ToF[ToF_count];
+
 void setup() {
   serial.init();
-  serial.sendMessage(Message(0,"HI"));
+  serial.sendMessage(Message(0, "HI"));
   pinMode(button_pin, INPUT);
   buzzer.init_pwm();
 
@@ -48,6 +70,33 @@ void setup() {
   }
 
   bnoio.init();
+
+  // I2C is already up: bnoio.init() called Wire.begin(21, 22, 400000).
+  // Hold every XSHUT-wired sensor in reset so only ToF[0] answers at the
+  // default address 0x29, then bring them up one at a time and re-address.
+  for (size_t i = 0; i < xShut_count; ++i) {
+    holdXshut(xShutPins[i]);
+  }
+  delay(10);  // wait for all ToFs to go down
+
+  for (size_t idx = 0; idx < ToF_count; ++idx) {
+    ToF[idx].setTimeout(500);
+    bool ok = false;
+    for (int attempt = 0; attempt < 10 && !ok; ++attempt) {
+      ok = ToF[idx].init();
+      if (!ok) {
+        delay(50);
+      }
+    }
+    if (ok) {
+      ToF[idx].setAddress(0x30 + idx);
+    } else {
+      serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
+    }
+    if (idx != xShut_count) {
+      releaseXshut(xShutPins[idx]);
+    }
+  }
 }
 
 void loop() {
@@ -75,7 +124,7 @@ void loop() {
     for (size_t i = 0; i < motor_count; ++i) {
       sts3032.WriteSpe(motors[i], 1000);
     }
-    serial.sendMessage(Message(0,"HI"));
+    serial.sendMessage(Message(0, "HI"));
   }
 
   else if (message.startsWith("buzz")) {
@@ -85,7 +134,11 @@ void loop() {
   }
 
   else if (message.startsWith("BNO")) {
-      bnoio.readSensor();
-      serial.sendMessage(Message(0, String(bnoio.getRoll())));
+    bnoio.readSensor();
+    serial.sendMessage(Message(0, String(bnoio.getRoll())));
+  }
+
+  else if (message.startsWith("ToF")) {
+
   }
 }
