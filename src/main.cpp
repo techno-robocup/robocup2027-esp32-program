@@ -25,6 +25,8 @@ constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
 SMS_STS sts3032;
 
+BNOIO bnoio;
+
 void setup() {
   serial.init();
   serial.sendMessage(Message(0,"HI"));
@@ -44,6 +46,8 @@ void setup() {
     sts3032.WheelMode(id);
     sts3032.LockEprom(id);
   }
+
+  bnoio.init();
 }
 
 void loop() {
@@ -74,9 +78,14 @@ void loop() {
     serial.sendMessage(Message(0,"HI"));
   }
 
-  if (message.startsWith("buzz")) {
+  else if (message.startsWith("buzz")) {
     // Sound the speaker: 1kHz tone for 300ms.
     buzzer.beep(1000, 300);
     serial.sendMessage(Message(msg.getId(), "BUZZ"));
+  }
+
+  else if (message.startsWith("BNO")) {
+      bnoio.readSensor();
+      serial.sendMessage(Message(0, String(bnoio.getRoll())));
   }
 }
