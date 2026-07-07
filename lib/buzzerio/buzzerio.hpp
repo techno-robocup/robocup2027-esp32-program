@@ -10,9 +10,9 @@ class BUZZERIO {
   BUZZERIO(const std::int8_t& pin, const int& channel);
   BUZZERIO& operator=(const BUZZERIO&) = default;
   bool init_pwm();
-  void play(const int& frequency);                         // start a continuous tone
-  void beep(const int& frequency, const int& duration_ms); // blocking tone, then silence
-  void stop();                                             // silence the speaker
+  void play(const int& frequency);                          // start a continuous tone
+  void beep(const int& frequency, const int& duration_ms);  // blocking tone, then silence
+  void stop();                                              // silence the speaker
 
  private:
   std::int8_t PIN;

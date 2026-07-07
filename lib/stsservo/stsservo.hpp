@@ -18,37 +18,33 @@
 #endif
 
 class STServo {
-public:
+ public:
   // rxPin/txPin are only used on ESP32; ignored on AVR (Mega) where the
   // hardware UART has fixed pins.
-  void begin(HardwareSerial& serial, uint32_t baud = 1000000,
-             int8_t rxPin = -1, int8_t txPin = -1);
+  void begin(HardwareSerial& serial, uint32_t baud = 1000000, int8_t rxPin = -1, int8_t txPin = -1);
 
   bool ping(uint8_t id);
   bool enableTorque(uint8_t id, bool on);
 
   // Position mode: target 0..4095 (~360 deg). speed in steps/s (0 = max),
   // acc 0..255 (0 = max).
-  bool writePosition(uint8_t id, uint16_t position,
-                     uint16_t speed = 0, uint8_t acc = 0);
+  bool writePosition(uint8_t id, uint16_t position, uint16_t speed = 0, uint8_t acc = 0);
 
   // Encoder / status feedback.
   bool readPosition(uint8_t id, uint16_t& position);
   bool readSpeed(uint8_t id, int16_t& speed);
-  bool readVoltage(uint8_t id, uint8_t& deciVolts);   // deciVolts / 10 = volts
+  bool readVoltage(uint8_t id, uint8_t& deciVolts);  // deciVolts / 10 = volts
   bool readTemperature(uint8_t id, uint8_t& celsius);
 
   // Writes the ID to EEPROM. Persists across power cycles -- use deliberately.
   bool setID(uint8_t currentID, uint8_t newID);
 
-private:
+ private:
   HardwareSerial* _serial = nullptr;
 
-  void writeRegisters(uint8_t id, uint8_t addr,
-                      const uint8_t* data, uint8_t len);
+  void writeRegisters(uint8_t id, uint8_t addr, const uint8_t* data, uint8_t len);
   bool readRegisters(uint8_t id, uint8_t addr, uint8_t len, uint8_t* out);
-  void sendPacket(uint8_t id, uint8_t instr,
-                  const uint8_t* params, uint8_t paramLen);
+  void sendPacket(uint8_t id, uint8_t instr, const uint8_t* params, uint8_t paramLen);
   void flushInput();
   bool readBytes(uint8_t* buf, uint8_t len, uint16_t timeoutMs);
 };
