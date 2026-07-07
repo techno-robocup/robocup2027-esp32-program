@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <HX711.h>
 #include <SMS_STS.h>
 #include <VL53L0X.h>
 #include <cassert>
@@ -22,11 +23,13 @@ constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 const uint8_t motors[] = {1, 2, 3, 4};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
-constexpr int8_t phototransistor_pin[2] = {4, 35};
+constexpr uint8_t DAT_PIN[2] = {26, 34};
+constexpr uint8_t CLK_PIN[2] = {33, 27};
 
 SMS_STS sts3032;
 
 BNOIO bnoio;
+HX711 scale_R, scale_L;
 
 // uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
 uint8_t xShutPins[0] = {};
@@ -98,9 +101,10 @@ void setup() {
       releaseXshut(xShutPins[idx]);
     }
   }
-  for (int8_t pin : phototransistor_pin) {
-    pinMode(pin, INPUT);
-  }
+  scale_R.begin(DAT_PIN[0], CLK_PIN[0]);
+  scale_L.begin(DAT_PIN[1], CLK_PIN[1]);
+  scale_R.reset();
+  scale_L.reset();
 }
 
 void loop() {
@@ -143,5 +147,11 @@ void loop() {
   }
 
   else if (message.startsWith("ToF")) {
+  }
+
+  else if (message.startsWith("scale")) {
+    long long weight_R = scale_R.get_units(10);
+    long long weight_L = scale_L.get_units(10);
+    serial.sendMessage(Message(0, "R: " + String(weight_R) + " L: " + String(weight_L)));
   }
 }
