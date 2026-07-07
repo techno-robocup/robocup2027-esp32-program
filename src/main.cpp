@@ -2,10 +2,8 @@
 #include <SMS_STS.h>
 #include <VL53L0X.h>
 #include <cassert>
-#include "armio.hpp"
 #include "bnoio.hpp"
 #include "buzzerio.hpp"
-#include "motorio.hpp"
 #include "mutex_guard.hpp"
 #include "serialio.hpp"
 SerialIO serial;
@@ -24,11 +22,14 @@ constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 const uint8_t motors[] = {1, 2, 3, 4};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
+constexpr int8_t phototransistor_pin[2] = {4, 35};
+
 SMS_STS sts3032;
 
 BNOIO bnoio;
 
-uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
+// uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
+uint8_t xShutPins[0] = {};
 constexpr size_t xShut_count = sizeof(xShutPins) / sizeof(xShutPins[0]);
 
 // Release XSHUT by going high-impedance and letting the board pull-up raise
@@ -45,7 +46,7 @@ static void holdXshut(uint8_t pin) {
 
 // ToF[0] is the always-on sensor (no XSHUT wire); ToF[i] for i >= 1 is the
 // sensor on xShutPins[i - 1].
-constexpr size_t ToF_count = 7;
+constexpr size_t ToF_count = 1;
 static_assert(ToF_count == xShut_count + 1, "Mismatch between ToF_count and xShut_count");
 VL53L0X ToF[ToF_count];
 
@@ -97,6 +98,9 @@ void setup() {
       releaseXshut(xShutPins[idx]);
     }
   }
+  for (int8_t pin : phototransistor_pin) {
+    pinMode(pin, INPUT);
+  }
 }
 
 void loop() {
@@ -139,6 +143,5 @@ void loop() {
   }
 
   else if (message.startsWith("ToF")) {
-
   }
 }
