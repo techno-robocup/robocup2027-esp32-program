@@ -89,11 +89,13 @@ ok [distance(int, space splitted)]
 ### Load cell
 
 send
+
 ```
 LOAD
 ```
 
 reply
+
 ```
 ok <weight_L> <weight_R>
 ```
@@ -101,9 +103,11 @@ ok <weight_L> <weight_R>
 ### Cage
 
 send
+
 ```
 CAGE <O/C>
 ```
+
 where O is open and C is close.
 
 reply
@@ -115,13 +119,29 @@ ok
 ### Switch
 
 send
+
 ```
 SWITCH
 ```
 
 reply
+
 ```
 ok <(on|off)>
+```
+
+### Photoresistors
+
+send
+
+```
+PHOTO
+```
+
+reply
+
+```
+ok <1st> <2nd>
 ```
 
 ## Dev
