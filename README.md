@@ -20,7 +20,7 @@ send
 MOTOR <l> <r>
 ```
 
-contraints
+constraints
 
 - -10,000 <= l, r <= 10,000
 
