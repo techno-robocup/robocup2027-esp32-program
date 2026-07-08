@@ -146,7 +146,7 @@ void loop() {
     serial.sendMessage(Message(0, String(bnoio.getRoll())));
   }
 
-  else if (message.startsWith("ToF")) {
+  else if (message.startsWith("TOF")) {
   }
 
   else if (message.startsWith("scale")) {
