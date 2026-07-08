@@ -11,8 +11,9 @@ SerialIO serial;
 
 constexpr int8_t SWITCH_PIN = 25;
 
-// Passive speaker/buzzer on GPIO2, driven by LEDC channel 5 (0-3 belong to
-// MOTORIO, 8-9 to ARMIO, so 4-7 are free).
+// TODO:
+//  Passive speaker/buzzer on GPIO2, driven by LEDC channel 5 (0-3 belong to
+//  MOTORIO, 8-9 to ARMIO, so 4-7 are free).
 constexpr std::int8_t BUZZER_PIN = 2;
 constexpr int BUZZER_CHANEL = 5;
 constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
@@ -20,6 +21,8 @@ constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 
 // Feetech STS3032 serial-bus servo IDs driving the four wheels.
 const uint8_t motors[] = {1, 2, 3, 4};
+const uint8_t motor_L[2] = {1, 2};
+const uint8_t motor_R[2] = {3, 4};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
 constexpr int8_t LOAD_L_PIN[2] = {26, 33};
@@ -29,8 +32,11 @@ constexpr int8_t CAGE_PIN = 32;
 
 constexpr int8_t PHOTO_PIN = 4;
 
-uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
-uint8_t xShutPins[0] = {};
+// uint8_t xShutPins[] = {-1 ,14, 18, 19, 23, 5, 15}; -1 is default Address (do not use XSHUT)
+uint8_t xShutPins[] = {14, 23, 15, 19};
+uint8_t tof_L[] = {0};
+uint8_t tof_R[] = {1};
+uint8_t tof_F[] = {2, 3};
 constexpr size_t xShut_count = sizeof(xShutPins) / sizeof(xShutPins[0]);
 
 // Release XSHUT by going high-impedance and letting the board pull-up raise
@@ -47,8 +53,9 @@ static void holdXshut(uint8_t pin) {
 
 // ToF[0] is the always-on sensor (no XSHUT wire); ToF[i] for i >= 1 is the
 // sensor on xShutPins[i - 1].
-constexpr size_t ToF_count = 1;
-static_assert(ToF_count == xShut_count + 1, "Mismatch between ToF_count and xShut_count");
+constexpr size_t ToF_count = 4;
+// static_assert(ToF_count == xShut_count + 1, "Mismatch between ToF_count and xShut_count");
+static_assert(ToF_count == xShut_count, "Mismatch between ToF_count and xShut_count");
 
 SMS_STS sts3032;
 VL53L0X ToF[ToF_count];
