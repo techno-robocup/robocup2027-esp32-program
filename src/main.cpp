@@ -9,13 +9,12 @@
 #include "serialio.hpp"
 SerialIO serial;
 
-constexpr int button_pin = 25;
+constexpr int8_t SWITCH_PIN = 25;
 
 // Passive speaker/buzzer on GPIO2, driven by LEDC channel 5 (0-3 belong to
 // MOTORIO, 8-9 to ARMIO, so 4-7 are free).
-constexpr std::int8_t buzzer_pin = 2;
-constexpr int buzzer_channel = 5;
-BUZZERIO buzzer(buzzer_pin, buzzer_channel);
+constexpr std::int8_t BUZZER_PIN = 2;
+constexpr int BUZZER_CHANEL = 5;
 constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
 constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 
@@ -23,15 +22,14 @@ constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 const uint8_t motors[] = {1, 2, 3, 4};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
-constexpr uint8_t DAT_PIN[2] = {26, 34};
-constexpr uint8_t CLK_PIN[2] = {33, 27};
+constexpr int8_t LOAD_L_PIN[2] = {26, 33};
+constexpr int8_t LOAD_R_PIN[2] = {34, 27};
 
-SMS_STS sts3032;
+constexpr int8_t CAGE_PIN = 32;
 
-BNOIO bnoio;
-HX711 scale_R, scale_L;
+constexpr int8_t PHOTO_PIN = 4;
 
-// uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
+uint8_t xShutPins[] = {14, 18, 19, 23, 5, 15};
 uint8_t xShutPins[0] = {};
 constexpr size_t xShut_count = sizeof(xShutPins) / sizeof(xShutPins[0]);
 
@@ -51,12 +49,17 @@ static void holdXshut(uint8_t pin) {
 // sensor on xShutPins[i - 1].
 constexpr size_t ToF_count = 1;
 static_assert(ToF_count == xShut_count + 1, "Mismatch between ToF_count and xShut_count");
+
+SMS_STS sts3032;
 VL53L0X ToF[ToF_count];
+BNOIO bnoio;
+HX711 load_R, load_L;
+BUZZERIO buzzer(BUZZER_PIN, BUZZER_CHANEL);
 
 void setup() {
   serial.init();
   serial.sendMessage(Message(0, "HI"));
-  pinMode(button_pin, INPUT);
+  pinMode(SWITCH_PIN, INPUT);
   buzzer.init_pwm();
 
   Serial2.begin(1000000, SERIAL_8N1, PIN_RX, PIN_TX);  // servo bus @ 1 Mbaud
@@ -101,10 +104,13 @@ void setup() {
       releaseXshut(xShutPins[idx]);
     }
   }
-  scale_R.begin(DAT_PIN[0], CLK_PIN[0]);
-  scale_L.begin(DAT_PIN[1], CLK_PIN[1]);
-  scale_R.reset();
-  scale_L.reset();
+  load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
+  load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
+  load_R.reset();
+  load_L.reset();
+
+  pinMode(CAGE_PIN, OUTPUT);
+  pinMode(PHOTO_PIN, INPUT);
 }
 
 void loop() {
@@ -127,31 +133,35 @@ void loop() {
     serial.sendMessage(Message(msg.getId(), "RX [" + message + "]"));
   }
 
-  if (message.startsWith("MOTOR ")) {
-    // Drive every wheel at a fixed test speed for now.
-    for (size_t i = 0; i < motor_count; ++i) {
-      sts3032.WriteSpe(motors[i], 1000);
-    }
-    serial.sendMessage(Message(0, "HI"));
+  if (message.startsWith("MOTOR")) {
+    int8_t motor_L, motor_R;
   }
 
-  else if (message.startsWith("buzz")) {
-    // Sound the speaker: 1kHz tone for 300ms.
-    buzzer.beep(1000, 300);
-    serial.sendMessage(Message(msg.getId(), "BUZZ"));
+  else if (message.startsWith("ARM")) {
+  }
+
+  else if (message.startsWith("BUZZ")) {
   }
 
   else if (message.startsWith("BNO")) {
-    bnoio.readSensor();
-    serial.sendMessage(Message(0, String(bnoio.getRoll())));
   }
 
   else if (message.startsWith("TOF")) {
   }
 
-  else if (message.startsWith("scale")) {
-    long long weight_R = scale_R.get_units(10);
-    long long weight_L = scale_L.get_units(10);
-    serial.sendMessage(Message(0, "R: " + String(weight_R) + " L: " + String(weight_L)));
+  else if (message.startsWith("LOAD")) {
+  }
+
+  else if (message.startsWith("CAGE")) {
+  }
+
+  else if (message.startsWith("SWITCH")) {
+  }
+
+  else if (message.startsWith("PHOTO")) {
+  }
+
+  else {
+    serial.sendMessage(Message(msg.getId(), "Unknown: [" + message + "]"));
   }
 }
