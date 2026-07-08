@@ -206,9 +206,10 @@ void loop() {
 
   else if (message.startsWith("BNO")) {
     if (bnoio.isInitialized()) {
-      serial.sendMessage(Message(msg.getId(), String(bnoio.getHeading()), String(bnoio.getRoll()),
-                                 String(bnoio.getPitch()), String(bnoio.getAccelX()),
-                                 String(bnoio.getAccelY()), String(bnoio.getAccelZ())));
+      serial.sendMessage(Message(
+          msg.getId(), String(bnoio.getHeading()) + " " + String(bnoio.getRoll()) + " " +
+                           String(bnoio.getPitch()) + " " + String(bnoio.getAccelX()) + " " +
+                           String(bnoio.getAccelY()) + " " + String(bnoio.getAccelZ())));
     } else {
       serial.sendMessage(Message(msg.getId(), "BNO not initialized"));
     }
@@ -255,7 +256,7 @@ void loop() {
   else if (message.startsWith("LOAD")) {
     long long load_L_val = load_L.get_units(10) / 1000;
     long long load_R_val = load_R.get_units(10) / 1000;
-    serial.sendMessage(Message(msg.getId(), String(load_L_val), String(load_R_val)));
+    serial.sendMessage(Message(msg.getId(), String(load_L_val) + " " + String(load_R_val)));
   }
 
   else if (message.startsWith("CAGE")) {
@@ -277,12 +278,13 @@ void loop() {
 
   else if (message.startsWith("SWITCH")) {
     bool switch_state = digitalRead(SWITCH_PIN);
-    serial.sendMessage(Message(msg.getId(), "ok", String(switch_state ? "on" : "off")));
+    serial.sendMessage(
+        Message(msg.getId(), (String("ok") + " " + String(switch_state ? "on" : "off"))));
   }
 
   else if (message.startsWith("PHOTO")) {
     uint16_t photo_state = digitalRead(PHOTO_PIN);
-    serial.sendMessage(Message(msg.getId(), "ok", String(photo_state)));
+    serial.sendMessage(Message(msg.getId(), (String("ok") + " " + String(photo_state))));
   }
 
   else {
