@@ -103,12 +103,14 @@ void setup() {
 
     ToF[idx].setTimeout(500);
     bool ok = false;
+
     for (int attempt = 0; attempt < 10 && !ok; ++attempt) {
       ok = ToF[idx].init();
       if (!ok) {
         delay(50);
       }
     }
+
     if (ok) {
       if (idx < xShut_count && xShutPins[idx] < 0) {
         serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (Default Address: 0x29)"));
@@ -123,6 +125,7 @@ void setup() {
       serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
     }
   }
+
   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
   load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
   load_R.reset();
@@ -153,31 +156,133 @@ void loop() {
   }
 
   if (message.startsWith("MOTOR")) {
-    int8_t motor_L, motor_R;
+    int16_t motor_L = 0;
+    int16_t motor_R = 0;
+
+    if (sscanf(message.c_str(), "MOTOR %hd %hd", &motor_L, &motor_R) == 2) {
+      if (motor_L < -9999 || motor_L > 9999 || motor_R < -9999 || motor_R > 9999) {
+        serial.sendMessage(Message(msg.getId(), "MOTOR out of range"));
+      } else {
+        uint8_t left_servos[2] = {1, 2};
+        for (int i = 0; i < 2; ++i) {
+          sts3032.WriteSpe(left_servos[i], motor_L);
+        }
+        uint8_t right_servos[2] = {3, 4};
+        for (int i = 0; i < 2; ++i) {
+          sts3032.WriteSpe(right_servos[i], motor_R);
+        }
+
+        serial.sendMessage(Message(msg.getId(), "ok"));
+      }
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
   }
 
   else if (message.startsWith("ARM")) {
+    int arm_pos = 0;
+    if (sscanf(message.c_str(), "ARM %d", &arm_pos) == 1) {
+      if (arm_pos < 0 || arm_pos > 4095) {
+        serial.sendMessage(Message(msg.getId(), "ARM out of range"));
+      } else {
+        sts3032.WritePosEx(5, arm_pos, 1000);
+        serial.sendMessage(Message(msg.getId(), "ok"));
+      }
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
   }
 
   else if (message.startsWith("BUZZ")) {
+    uint16_t freq = 0;
+    uint16_t dur = 0;
+    if (sscanf(message.c_str(), "BUZZ %hu %hu", &freq, &dur) == 2) {
+      buzzer.beep(freq, dur);
+      serial.sendMessage(Message(msg.getId(), "ok"));
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
   }
 
   else if (message.startsWith("BNO")) {
+    if (bnoio.isInitialized()) {
+      serial.sendMessage(Message(msg.getId(), String(bnoio.getHeading()), String(bnoio.getRoll()),
+                                 String(bnoio.getPitch()), String(bnoio.getAccelX()),
+                                 String(bnoio.getAccelY()), String(bnoio.getAccelZ())));
+    } else {
+      serial.sendMessage(Message(msg.getId(), "BNO not initialized"));
+    }
   }
 
   else if (message.startsWith("TOF")) {
+    char dir;
+    if (sscanf(message.c_str(), "TOF %c", &dir) == 1) {
+      if (dir == 'l') {
+        for (size_t i = 0; i < sizeof(tof_L); ++i) {
+          uint16_t distances[sizeof(tof_L)];
+          if (tof_L[i] < ToF_count) {
+            distances[i] = ToF[tof_L[i]].readRangeSingleMillimeters();
+          } else {
+            distances[i] = 0;
+          }
+        }
+      } else if (dir == 'r') {
+        for (size_t i = 0; i < sizeof(tof_R); ++i) {
+          uint16_t distances[sizeof(tof_R)];
+          if (tof_R[i] < ToF_count) {
+            distances[i] = ToF[tof_R[i]].readRangeSingleMillimeters();
+          } else {
+            distances[i] = 0;
+          }
+        }
+      } else if (dir == 'f') {
+        for (size_t i = 0; i < sizeof(tof_F); ++i) {
+          uint16_t distances[sizeof(tof_F)];
+          if (tof_F[i] < ToF_count) {
+            distances[i] = ToF[tof_F[i]].readRangeSingleMillimeters();
+          } else {
+            distances[i] = 0;
+          }
+        }
+      } else {
+        serial.sendMessage(Message(msg.getId(), "Invalid direction"));
+      }
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
   }
 
   else if (message.startsWith("LOAD")) {
+    long long load_L_val = load_L.get_units(10) / 1000;
+    long long load_R_val = load_R.get_units(10) / 1000;
+    serial.sendMessage(Message(msg.getId(), String(load_L_val), String(load_R_val)));
   }
 
   else if (message.startsWith("CAGE")) {
+    char mes;
+    if (sscanf(message.c_str(), "CAGE %c", &mes) == 1) {
+      if (mes == 'O') {
+        digitalWrite(CAGE_PIN, HIGH);
+        serial.sendMessage(Message(msg.getId(), "ok"));
+      } else if (mes == 'C') {
+        digitalWrite(CAGE_PIN, LOW);
+        serial.sendMessage(Message(msg.getId(), "ok"));
+      } else {
+        serial.sendMessage(Message(msg.getId(), "Invalid format"));
+      }
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
   }
 
   else if (message.startsWith("SWITCH")) {
+    bool switch_state = digitalRead(SWITCH_PIN);
+    serial.sendMessage(Message(msg.getId(), "ok", String(switch_state ? "on" : "off")));
   }
 
   else if (message.startsWith("PHOTO")) {
+    uint16_t photo_state = digitalRead(PHOTO_PIN);
+    serial.sendMessage(Message(msg.getId(), "ok", String(photo_state)));
   }
 
   else {
