@@ -89,11 +89,18 @@ void setup() {
   // Hold every XSHUT-wired sensor in reset so only ToF[0] answers at the
   // default address 0x29, then bring them up one at a time and re-address.
   for (size_t i = 0; i < xShut_count; ++i) {
-    holdXshut(xShutPins[i]);
+    if (xShutPins[i] >= 0) {
+      holdXshut(xShutPins[i]);
+    }
   }
-  delay(10);  // wait for all ToFs to go down
+  delay(10);
+  uint8_t nextAddress = 0x30;
 
   for (size_t idx = 0; idx < ToF_count; ++idx) {
+    if (idx < xShut_count && xShutPins[idx] >= 0) {
+      releaseXshut(xShutPins[idx]);
+    }
+
     ToF[idx].setTimeout(500);
     bool ok = false;
     for (int attempt = 0; attempt < 10 && !ok; ++attempt) {
@@ -103,12 +110,17 @@ void setup() {
       }
     }
     if (ok) {
-      ToF[idx].setAddress(0x30 + idx);
+      if (idx < xShut_count && xShutPins[idx] < 0) {
+        serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (Default Address: 0x29)"));
+      } else {
+        ToF[idx].setAddress(nextAddress);
+        serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (New Address: 0x" +
+                                          String(nextAddress, HEX) + ")"));
+
+        nextAddress++;
+      }
     } else {
       serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
-    }
-    if (idx != xShut_count) {
-      releaseXshut(xShutPins[idx]);
     }
   }
   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
