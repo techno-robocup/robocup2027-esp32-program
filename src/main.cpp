@@ -206,10 +206,11 @@ void loop() {
 
   else if (message.startsWith("BNO")) {
     if (bnoio.isInitialized()) {
-      serial.sendMessage(Message(
-          msg.getId(), String(bnoio.getHeading()) + " " + String(bnoio.getRoll()) + " " +
-                           String(bnoio.getPitch()) + " " + String(bnoio.getAccelX()) + " " +
-                           String(bnoio.getAccelY()) + " " + String(bnoio.getAccelZ())));
+      serial.sendMessage(
+          Message(msg.getId(), String("ok") + " " + String(bnoio.getHeading()) + " " +
+                                   String(bnoio.getRoll()) + " " + String(bnoio.getPitch()) + " " +
+                                   String(bnoio.getAccelX()) + " " + String(bnoio.getAccelY()) +
+                                   " " + String(bnoio.getAccelZ())));
     } else {
       serial.sendMessage(Message(msg.getId(), "BNO not initialized"));
     }
@@ -217,37 +218,42 @@ void loop() {
 
   else if (message.startsWith("TOF")) {
     char dir;
+    String message = "";
     if (sscanf(message.c_str(), "TOF %c", &dir) == 1) {
       if (dir == 'l') {
+        message = "ok ";
         for (size_t i = 0; i < sizeof(tof_L); ++i) {
           uint16_t distances[sizeof(tof_L)];
           if (tof_L[i] < ToF_count) {
-            distances[i] = ToF[tof_L[i]].readRangeSingleMillimeters();
+            message += String(distances[i]) + " ";
           } else {
             distances[i] = 0;
           }
         }
       } else if (dir == 'r') {
+        message = "ok ";
         for (size_t i = 0; i < sizeof(tof_R); ++i) {
           uint16_t distances[sizeof(tof_R)];
           if (tof_R[i] < ToF_count) {
-            distances[i] = ToF[tof_R[i]].readRangeSingleMillimeters();
+            message += String(distances[i]) + " ";
           } else {
             distances[i] = 0;
           }
         }
       } else if (dir == 'f') {
+        message = "ok ";
         for (size_t i = 0; i < sizeof(tof_F); ++i) {
           uint16_t distances[sizeof(tof_F)];
           if (tof_F[i] < ToF_count) {
-            distances[i] = ToF[tof_F[i]].readRangeSingleMillimeters();
+            message += String(distances[i]) + " ";
           } else {
             distances[i] = 0;
           }
         }
       } else {
-        serial.sendMessage(Message(msg.getId(), "Invalid direction"));
+        message = "Invalid format";
       }
+      serial.sendMessage(Message(msg.getId(), message));
     } else {
       serial.sendMessage(Message(msg.getId(), "Invalid format"));
     }
@@ -256,7 +262,8 @@ void loop() {
   else if (message.startsWith("LOAD")) {
     long long load_L_val = load_L.get_units(10) / 1000;
     long long load_R_val = load_R.get_units(10) / 1000;
-    serial.sendMessage(Message(msg.getId(), String(load_L_val) + " " + String(load_R_val)));
+    serial.sendMessage(
+        Message(msg.getId(), String("ok") + " " + String(load_L_val) + " " + String(load_R_val)));
   }
 
   else if (message.startsWith("CAGE")) {
@@ -284,7 +291,8 @@ void loop() {
 
   else if (message.startsWith("PHOTO")) {
     uint16_t photo_state = digitalRead(PHOTO_PIN);
-    serial.sendMessage(Message(msg.getId(), (String("ok") + " " + String(photo_state))));
+    serial.sendMessage(
+        Message(msg.getId(), (String("ok") + " " + String(photo_state) + " " + String(0))));
   }
 
   else {

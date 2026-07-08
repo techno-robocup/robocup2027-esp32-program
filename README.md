@@ -38,6 +38,8 @@ send
 ARM <angle>
 ```
 
+- 0 <= angle <= 4095
+
 reply
 
 ```
