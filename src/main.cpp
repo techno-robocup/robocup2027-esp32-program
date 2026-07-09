@@ -20,9 +20,9 @@ constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
 constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 
 // Feetech STS3032 serial-bus servo IDs driving the four wheels.
-const uint8_t motors[] = {1, 2, 3, 4};
-const uint8_t motor_L[2] = {1, 2};
-const uint8_t motor_R[2] = {3, 4};
+const uint8_t motors[] = {0, 1, 2, 3};
+const uint8_t motor_L[2] = {0, 1};
+const uint8_t motor_R[2] = {2, 3};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
 constexpr int8_t LOAD_L_PIN[2] = {26, 33};
@@ -34,8 +34,8 @@ constexpr int8_t PHOTO_PIN = 4;
 
 // uint8_t xShutPins[] = {-1 ,14, 18, 19, 23, 5, 15}; -1 is default Address (do not use XSHUT)
 uint8_t xShutPins[] = {14, 23, 15, 19};
-uint8_t tof_L[] = {0};
-uint8_t tof_R[] = {1};
+uint8_t tof_L[] = {1};
+uint8_t tof_R[] = {0};
 uint8_t tof_F[] = {2, 3};
 constexpr size_t xShut_count = sizeof(xShutPins) / sizeof(xShutPins[0]);
 
@@ -134,7 +134,7 @@ void setup() {
   pinMode(CAGE_PIN, OUTPUT);
   pinMode(PHOTO_PIN, INPUT);
 
-  BuzzerIO::beep(1000, 100);
+  buzzer.beep(1000, 100);
 }
 
 void loop() {
@@ -150,7 +150,6 @@ void loop() {
 
   Message msg = serial.receiveMessage();
   String message = msg.getMessage();
-
   // Echo whatever arrived so you can see exactly how it was parsed: the leading
   // integer becomes the id, everything after the first space is the message.
   if (message.length() > 0) {
@@ -220,50 +219,51 @@ void loop() {
 
   else if (message.startsWith("TOF")) {
     char dir;
-    String message = "";
+    String r_message = "";
     if (sscanf(message.c_str(), "TOF %c", &dir) == 1) {
       if (dir == 'l') {
-        message = "ok ";
+        r_message = "ok ";
         for (size_t i = 0; i < sizeof(tof_L); ++i) {
-          uint16_t distances[sizeof(tof_L)];
-          if (tof_L[i] < ToF_count) {
-            message += String(distances[i]) + " ";
+          uint8_t idx = tof_L[i];
+          if (idx < ToF_count) {
+            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+            r_message += String(dist) + " ";
           } else {
-            distances[i] = 0;
+            r_message += "0 ";
           }
         }
       } else if (dir == 'r') {
-        message = "ok ";
+        r_message = "ok ";
         for (size_t i = 0; i < sizeof(tof_R); ++i) {
-          uint16_t distances[sizeof(tof_R)];
-          if (tof_R[i] < ToF_count) {
-            message += String(distances[i]) + " ";
+          uint8_t idx = tof_R[i];
+          if (idx < ToF_count) {
+            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+            r_message += String(dist) + " ";
           } else {
-            distances[i] = 0;
+            r_message += "0 ";
           }
         }
       } else if (dir == 'f') {
-        message = "ok ";
+        r_message = "ok ";
         for (size_t i = 0; i < sizeof(tof_F); ++i) {
-          uint16_t distances[sizeof(tof_F)];
-          if (tof_F[i] < ToF_count) {
-            message += String(distances[i]) + " ";
+          uint8_t idx = tof_F[i];
+          if (idx < ToF_count) {
+            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+            r_message += String(dist) + " ";
           } else {
-            distances[i] = 0;
+            r_message += "0 ";
           }
         }
       } else {
-        message = "Invalid format";
+        r_message = "Invalid format";
       }
-      serial.sendMessage(Message(msg.getId(), message));
+      serial.sendMessage(Message(msg.getId(), r_message));
     } else {
       serial.sendMessage(Message(msg.getId(), "Invalid format"));
     }
-  }
-
-  else if (message.startsWith("LOAD")) {
-    long long load_L_val = load_L.get_units(10) / 1000;
-    long long load_R_val = load_R.get_units(10) / 1000;
+  } else if (message.startsWith("LOAD")) {
+    long long load_L_val = load_L.get_units(10) / 100;
+    long long load_R_val = load_R.get_units(10) / 100;
     serial.sendMessage(
         Message(msg.getId(), String("ok") + " " + String(load_L_val) + " " + String(load_R_val)));
   }
@@ -297,7 +297,7 @@ void loop() {
         Message(msg.getId(), (String("ok") + " " + String(photo_state) + " " + String(0))));
   }
 
-  else {
-    serial.sendMessage(Message(msg.getId(), "Unknown: [" + message + "]"));
-  }
+  // else {
+  //   serial.sendMessage(Message(msg.getId(), "Unknown: [" + message + "]"));
+  // }
 }
