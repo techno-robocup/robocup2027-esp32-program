@@ -133,6 +133,8 @@ void setup() {
 
   pinMode(CAGE_PIN, OUTPUT);
   pinMode(PHOTO_PIN, INPUT);
+
+  BuzzerIO::beep(1000, 100);
 }
 
 void loop() {
