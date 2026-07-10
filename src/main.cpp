@@ -74,7 +74,6 @@ void setup() {
   delay(50);  // to wait for initialization of sts3032
 
   // Put every servo on the bus into continuous-rotation (wheel) mode.
-  // WheelMode() writes SMS_STS_MODE to EEPROM, so unlock/lock around it.
   for (size_t i = 0; i < motor_count; ++i) {
     uint8_t id = motors[i];
     sts3032.unLockEprom(id);
@@ -83,11 +82,8 @@ void setup() {
     sts3032.LockEprom(id);
   }
 
-  bnoio.init();
+  Wire.begin(21, 22, 400000);
 
-  // I2C is already up: bnoio.init() called Wire.begin(21, 22, 400000).
-  // Hold every XSHUT-wired sensor in reset so only ToF[0] answers at the
-  // default address 0x29, then bring them up one at a time and re-address.
   for (size_t i = 0; i < xShut_count; ++i) {
     if (xShutPins[i] >= 0) {
       holdXshut(xShutPins[i]);
@@ -99,6 +95,7 @@ void setup() {
   for (size_t idx = 0; idx < ToF_count; ++idx) {
     if (idx < xShut_count && xShutPins[idx] >= 0) {
       releaseXshut(xShutPins[idx]);
+      delay(10);
     }
 
     ToF[idx].setTimeout(500);
@@ -118,13 +115,15 @@ void setup() {
         ToF[idx].setAddress(nextAddress);
         serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (New Address: 0x" +
                                           String(nextAddress, HEX) + ")"));
-
         nextAddress++;
       }
     } else {
       serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
     }
   }
+
+  bnoio.init();
+  delay(50);
 
   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
   load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
