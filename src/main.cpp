@@ -1,12 +1,16 @@
+#include <Adafruit_BNO055.h>
+#include <Adafruit_Sensor.h>
 #include <Arduino.h>
 #include <HX711.h>
 #include <SMS_STS.h>
 #include <VL53L0X.h>
+#include <Wire.h>
+#include <utility/imumaths.h>
 #include <cassert>
-#include "bnoio.hpp"
 #include "buzzerio.hpp"
 #include "mutex_guard.hpp"
 #include "serialio.hpp"
+
 SerialIO serial;
 
 constexpr int8_t SWITCH_PIN = 25;
@@ -29,7 +33,6 @@ constexpr int8_t LOAD_L_PIN[2] = {26, 33};
 constexpr int8_t LOAD_R_PIN[2] = {34, 27};
 
 constexpr int8_t CAGE_PIN = 32;
-
 constexpr int8_t PHOTO_PIN = 4;
 
 // uint8_t xShutPins[] = {-1 ,14, 18, 19, 23, 5, 15}; -1 is default Address (do not use XSHUT)
@@ -59,9 +62,11 @@ static_assert(ToF_count == xShut_count, "Mismatch between ToF_count and xShut_co
 
 SMS_STS sts3032;
 VL53L0X ToF[ToF_count];
-BNOIO bnoio;
 HX711 load_R, load_L;
 BUZZERIO buzzer(BUZZER_PIN, BUZZER_CHANEL);
+
+Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
+bool bnoInitialized = false;
 
 void setup() {
   serial.init();
@@ -69,11 +74,10 @@ void setup() {
   pinMode(SWITCH_PIN, INPUT);
   buzzer.init_pwm();
 
-  Serial2.begin(1000000, SERIAL_8N1, PIN_RX, PIN_TX);  // servo bus @ 1 Mbaud
+  Serial2.begin(1000000, SERIAL_8N1, PIN_RX, PIN_TX);
   sts3032.pSerial = &Serial2;
-  delay(50);  // to wait for initialization of sts3032
+  delay(50);
 
-  // Put every servo on the bus into continuous-rotation (wheel) mode.
   for (size_t i = 0; i < motor_count; ++i) {
     uint8_t id = motors[i];
     sts3032.unLockEprom(id);
@@ -82,20 +86,34 @@ void setup() {
     sts3032.LockEprom(id);
   }
 
+  // 1. Explicitly initialize the I2C Bus first
   Wire.begin(21, 22, 400000);
+  delay(50);
 
+  // 2. Shut down all ToF lines immediately to clean the I2C bus environment
   for (size_t i = 0; i < xShut_count; ++i) {
     if (xShutPins[i] >= 0) {
       holdXshut(xShutPins[i]);
     }
   }
-  delay(10);
-  uint8_t nextAddress = 0x30;
+  delay(50);
 
+  // 3. Initialize the Adafruit BNO055 while the ToF sensors are asleep
+  if (bno.begin()) {
+    bnoInitialized = true;
+    bno.setExtCrystalUse(true);
+    serial.sendMessage(Message(0, "BNO init ok"));
+  } else {
+    bnoInitialized = false;
+    serial.sendMessage(Message(0, "BNO init failed"));
+  }
+
+  // 4. Now systematically wake up and change addresses for ToF sensors
+  uint8_t nextAddress = 0x30;
   for (size_t idx = 0; idx < ToF_count; ++idx) {
     if (idx < xShut_count && xShutPins[idx] >= 0) {
       releaseXshut(xShutPins[idx]);
-      delay(10);
+      delay(20);
     }
 
     ToF[idx].setTimeout(500);
@@ -122,9 +140,6 @@ void setup() {
     }
   }
 
-  bnoio.init();
-  delay(50);
-
   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
   load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
   load_R.reset();
@@ -137,9 +152,16 @@ void setup() {
 }
 
 void loop() {
-  // Heartbeat: prints once a second no matter what, so you can confirm the USB
-  // serial link works without sending anything. If you never see TICK, the
-  // problem is the monitor/port/baud, not the command parsing.
+  // Global event container to store live sensor readings
+  sensors_event_t orientationEvent;
+  sensors_event_t accelEvent;
+
+  if (bnoInitialized) {
+    // Read fresh data directly from the Adafruit library inside the loop
+    bno.getEvent(&orientationEvent, Adafruit_BNO055::VECTOR_EULER);
+    bno.getEvent(&accelEvent, Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  }
+
   static unsigned long last_beat = 0;
   static uint32_t beats = 0;
   if (millis() - last_beat >= 1000) {
@@ -149,29 +171,27 @@ void loop() {
 
   Message msg = serial.receiveMessage();
   String message = msg.getMessage();
-  // Echo whatever arrived so you can see exactly how it was parsed: the leading
-  // integer becomes the id, everything after the first space is the message.
+
   if (message.length() > 0) {
     serial.sendMessage(Message(msg.getId(), "RX [" + message + "]"));
   }
 
   if (message.startsWith("MOTOR")) {
-    int16_t motor_L = 0;
-    int16_t motor_R = 0;
+    int16_t motor_L_val = 0;
+    int16_t motor_R_val = 0;
 
-    if (sscanf(message.c_str(), "MOTOR %hd %hd", &motor_L, &motor_R) == 2) {
-      if (motor_L < -9999 || motor_L > 9999 || motor_R < -9999 || motor_R > 9999) {
+    if (sscanf(message.c_str(), "MOTOR %hd %hd", &motor_L_val, &motor_R_val) == 2) {
+      if (motor_L_val < -9999 || motor_L_val > 9999 || motor_R_val < -9999 || motor_R_val > 9999) {
         serial.sendMessage(Message(msg.getId(), "MOTOR out of range"));
       } else {
         uint8_t left_servos[2] = {1, 2};
         for (int i = 0; i < 2; ++i) {
-          sts3032.WriteSpe(left_servos[i], motor_L);
+          sts3032.WriteSpe(left_servos[i], motor_L_val);
         }
         uint8_t right_servos[2] = {3, 4};
         for (int i = 0; i < 2; ++i) {
-          sts3032.WriteSpe(right_servos[i], motor_R);
+          sts3032.WriteSpe(right_servos[i], motor_R_val);
         }
-
         serial.sendMessage(Message(msg.getId(), "ok"));
       }
     } else {
@@ -205,12 +225,15 @@ void loop() {
   }
 
   else if (message.startsWith("BNO")) {
-    if (bnoio.isInitialized()) {
-      serial.sendMessage(
-          Message(msg.getId(), String("ok") + " " + String(bnoio.getHeading()) + " " +
-                                   String(bnoio.getRoll()) + " " + String(bnoio.getPitch()) + " " +
-                                   String(bnoio.getAccelX()) + " " + String(bnoio.getAccelY()) +
-                                   " " + String(bnoio.getAccelZ())));
+    if (bnoInitialized) {
+      // Send the actual floating point data fetched from the Adafruit objects
+      serial.sendMessage(Message(
+          msg.getId(), String("ok") + " " + String(orientationEvent.orientation.x, 4) +  // Heading
+                           " " + String(orientationEvent.orientation.z, 4) +             // Roll
+                           " " + String(orientationEvent.orientation.y, 4) +             // Pitch
+                           " " + String(accelEvent.acceleration.x, 4) +                  // Accel X
+                           " " + String(accelEvent.acceleration.y, 4) +                  // Accel Y
+                           " " + String(accelEvent.acceleration.z, 4)));                 // Accel Z
     } else {
       serial.sendMessage(Message(msg.getId(), "BNO not initialized"));
     }
