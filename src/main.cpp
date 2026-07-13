@@ -151,9 +151,9 @@ void loop() {
   String message = msg.getMessage();
   // Echo whatever arrived so you can see exactly how it was parsed: the leading
   // integer becomes the id, everything after the first space is the message.
-  if (message.length() > 0) {
-    serial.sendMessage(Message(msg.getId(), "RX [" + message + "]"));
-  }
+  // if (message.length() > 0) {
+  //   serial.sendMessage(Message(msg.getId(), "RX [" + message + "]"));
+  // }
 
   if (message.startsWith("MOTOR")) {
     int16_t motor_L = 0;
