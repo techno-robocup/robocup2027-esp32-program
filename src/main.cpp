@@ -33,7 +33,6 @@ constexpr int8_t LOAD_L_PIN[2] = {26, 33};
 constexpr int8_t LOAD_R_PIN[2] = {34, 27};
 
 constexpr int8_t CAGE_PIN = 32;
-constexpr int8_t PHOTO_PIN = 4;
 
 // uint8_t xShutPins[] = {-1 ,14, 18, 19, 23, 5, 15}; -1 is default Address (do not use XSHUT)
 uint8_t xShutPins[] = {14, 23, 15, 19};
@@ -146,7 +145,6 @@ void setup() {
   load_L.reset();
 
   pinMode(CAGE_PIN, OUTPUT);
-  pinMode(PHOTO_PIN, INPUT);
 
   buzzer.beep(1000, 100);
 }
@@ -311,12 +309,6 @@ void loop() {
     bool switch_state = digitalRead(SWITCH_PIN);
     serial.sendMessage(
         Message(msg.getId(), (String("ok") + " " + String(switch_state ? "on" : "off"))));
-  }
-
-  else if (message.startsWith("PHOTO")) {
-    uint16_t photo_state = digitalRead(PHOTO_PIN);
-    serial.sendMessage(
-        Message(msg.getId(), (String("ok") + " " + String(photo_state) + " " + String(0))));
   }
 
   // else {

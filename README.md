@@ -132,20 +132,6 @@ reply
 ok <(on|off)>
 ```
 
-### Photoresistors
-
-send
-
-```
-PHOTO
-```
-
-reply
-
-```
-ok <1st> <2nd>
-```
-
 ## Dev
 
 This project uses PlatformIO.
