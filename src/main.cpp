@@ -166,10 +166,6 @@ void loop() {
   Message msg = serial.receiveMessage();
   String message = msg.getMessage();
 
-  if (message.length() > 0) {
-    serial.sendMessage(Message(msg.getId(), "RX [" + message + "]"));
-  }
-
   if (message.startsWith("MOTOR")) {
     int16_t motor_L_val = 0;
     int16_t motor_R_val = 0;
