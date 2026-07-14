@@ -274,8 +274,8 @@ void loop() {
       serial.sendMessage(Message(msg.getId(), "Invalid format"));
     }
   } else if (message.startsWith("LOAD")) {
-    long long load_L_val = load_L.get_units(10) / 100;
-    long long load_R_val = load_R.get_units(10) / 100;
+    long long load_L_val = load_L.get_value() / 100;
+    long long load_R_val = load_R.get_value() / 100;
     serial.sendMessage(
         Message(msg.getId(), String("ok") + " " + String(load_L_val) + " " + String(load_R_val)));
   }
