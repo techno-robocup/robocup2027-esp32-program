@@ -162,10 +162,6 @@ void loop() {
 
   static unsigned long last_beat = 0;
   static uint32_t beats = 0;
-  if (millis() - last_beat >= 1000) {
-    last_beat = millis();
-    serial.sendMessage(Message(0, "TICK " + String(beats++)));
-  }
 
   Message msg = serial.receiveMessage();
   String message = msg.getMessage();
