@@ -29,6 +29,7 @@ const uint8_t motor_L[2] = {0, 1};
 const uint8_t motor_R[2] = {2, 3};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
+constexpr uint8_t ARM_SERVO_ID = 1;
 constexpr int8_t LOAD_L_PIN[2] = {26, 33};
 constexpr int8_t LOAD_R_PIN[2] = {34, 27};
 
@@ -85,7 +86,10 @@ void setup() {
     sts3032.LockEprom(id);
   }
 
-  // 1. Explicitly initialize the I2C Bus first
+  sts3032.unLockEprom(ARM_SERVO_ID);
+  sts3032.EnableTorque(ARM_SERVO_ID, 1);
+  sts3032.LockEprom(ARM_SERVO_ID);
+
   Wire.begin(21, 22, 400000);
   delay(50);
 
@@ -174,9 +178,8 @@ void loop() {
       if (motor_L_val < -9999 || motor_L_val > 9999 || motor_R_val < -9999 || motor_R_val > 9999) {
         serial.sendMessage(Message(msg.getId(), "MOTOR out of range"));
       } else {
-        uint8_t left_servos[2] = {1, 2};
-        for (int i = 0; i < 2; ++i) {
-          sts3032.WriteSpe(left_servos[i], motor_L_val);
+        for (uint8_t i : motor_L) {
+          sts3032.WriteSpe(i, motor_L_val);
         }
         uint8_t right_servos[2] = {3, 4};
         for (int i = 0; i < 2; ++i) {
