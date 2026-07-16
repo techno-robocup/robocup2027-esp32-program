@@ -305,8 +305,4 @@ void loop() {
     serial.sendMessage(
         Message(msg.getId(), (String("ok") + " " + String(switch_state ? "on" : "off"))));
   }
-
-  // else {
-  //   serial.sendMessage(Message(msg.getId(), "Unknown: [" + message + "]"));
-  // }
 }
