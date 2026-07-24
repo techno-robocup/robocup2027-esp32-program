@@ -198,7 +198,7 @@ void loop() {
       if (arm_pos < 0 || arm_pos > 4095) {
         serial.sendMessage(Message(msg.getId(), "ARM out of range"));
       } else {
-        sts3032.WritePosEx(5, arm_pos, 1000);
+        sts3032.WritePosEx(5, arm_pos, 4000);
         serial.sendMessage(Message(msg.getId(), "ok"));
       }
     } else {
