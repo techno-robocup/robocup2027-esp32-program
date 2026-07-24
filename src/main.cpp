@@ -24,12 +24,12 @@ constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
 constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 
 // Feetech STS3032 serial-bus servo IDs driving the four wheels.
-const uint8_t motors[] = {0, 1, 2, 3};
-const uint8_t motor_L[2] = {0, 1};
-const uint8_t motor_R[2] = {2, 3};
+const uint8_t motors[] = {1, 2, 3, 4};
+const uint8_t motor_L[2] = {1, 2};
+const uint8_t motor_R[2] = {3, 4};
 constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
 
-constexpr uint8_t ARM_SERVO_ID = 1;
+constexpr uint8_t ARM_SERVO_ID = 5;
 constexpr int8_t LOAD_L_PIN[2] = {26, 33};
 constexpr int8_t LOAD_R_PIN[2] = {34, 27};
 
