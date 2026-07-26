@@ -19,3 +19,6 @@ compile_commands.json
 _codeql_detected_source_root
 
 .cache
+
+
+robocup2027-esp32-program.txt
