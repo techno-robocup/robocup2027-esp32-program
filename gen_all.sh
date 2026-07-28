@@ -11,7 +11,7 @@ echo "=== DIRECTORY STRUCTURE ===" >"$OUTPUT_FILE"
 
 # 1. Generate directory tree
 if command -v tree &>/dev/null; then
-  tree "$TARGET_DIR" -I "node_modules|.git|.next|dist|build|vendor|.venv|venv|__pycache__|libtorch" >>"$OUTPUT_FILE"
+  tree -a "$TARGET_DIR" -I "node_modules|.git|.next|dist|build|vendor|.venv|venv|__pycache__|libtorch" >>"$OUTPUT_FILE"
 else
   find "$TARGET_DIR" -maxdepth 4 | grep -vE "$EXCLUDE_DIRS" >>"$OUTPUT_FILE"
 fi
