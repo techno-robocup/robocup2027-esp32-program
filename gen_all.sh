@@ -4,7 +4,7 @@ OUTPUT_FILE="robocup2027-esp32-program.txt"
 TARGET_DIR="${1:-.}"
 
 # Exclude directories/files you usually don't want to upload (added libtorch)
-EXCLUDE_DIRS="(\.git|\.next|node_modules|dist|build|vendor|\.venv|venv|__pycache__|libtorch|build)"
+EXCLUDE_DIRS="(\.git|\.next|node_modules|dist|build|vendor|\.venv|venv|__pycache__|libtorch|build|.pio)"
 EXCLUDE_FILES="(\.DS_Store|package-lock\.json|yarn\.lock|pnpm-lock\.yaml|project_context\.txt)"
 
 echo "=== DIRECTORY STRUCTURE ===" >"$OUTPUT_FILE"
