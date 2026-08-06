@@ -69,6 +69,7 @@ Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 bool bnoInitialized = false;
 
 void setup() {
+  buzzer.beep(440, 100);
   serial.init();
   serial.sendMessage(Message(0, "HI"));
   pinMode(SWITCH_PIN, INPUT);
