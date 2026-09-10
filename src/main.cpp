@@ -23,11 +23,27 @@ constexpr int BUZZER_CHANEL = 5;
 constexpr int8_t PIN_RX = 17;  // ESP32 GPIO16 (RX2) <- FE-URT-2 UART TX
 constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 
-// Feetech STS3032 serial-bus servo IDs driving the four wheels.
-const uint8_t motors[] = {1, 2, 3, 4};
-const uint8_t motor_L[2] = {1, 2};
-const uint8_t motor_R[2] = {3, 4};
-constexpr size_t motor_count = sizeof(motors) / sizeof(motors[0]);
+// Feetech STS3032 serial-bus servo IDs driving the wheels.
+//   side: -1 = the wheel follows the left command, +1 = the right command.
+//   dir : +1 / -1 corrects for how the servo is mounted, so that a positive
+//         command always drives the robot forward.
+// Every row here was measured with the WHEEL probe below, not derived from
+// the frame. Note there are three rows for four wheels: the two left servos
+// were shipped sharing ID 1, so one WriteSpe drives both, and nothing on the
+// bus answers to ID 3. Re-ID the rear-left servo to 3 (one servo at a time on
+// the bus, or the duplicate ID makes reads collide) and this becomes the
+// expected four-row table with {3, -1, +1} for it.
+struct Wheel {
+  uint8_t id;
+  int8_t side;
+  int8_t dir;
+};
+const Wheel wheels[] = {
+    {1, -1, +1},  // both left wheels (duplicate ID)
+    {2, +1, -1},  // rear right
+    {4, +1, -1},  // front right
+};
+constexpr size_t motor_count = sizeof(wheels) / sizeof(wheels[0]);
 
 constexpr uint8_t ARM_SERVO_ID = 5;
 constexpr int8_t LOAD_L_PIN[2] = {26, 33};
@@ -80,12 +96,11 @@ void setup() {
   sts3032.pSerial = &Serial2;
   delay(50);
 
-  for (size_t i = 0; i < motor_count; ++i) {
-    uint8_t id = motors[i];
-    sts3032.unLockEprom(id);
-    sts3032.EnableTorque(id, 1);
-    sts3032.WheelMode(id);
-    sts3032.LockEprom(id);
+  for (const Wheel& w : wheels) {
+    sts3032.unLockEprom(w.id);
+    sts3032.EnableTorque(w.id, 1);
+    sts3032.WheelMode(w.id);
+    sts3032.LockEprom(w.id);
   }
 
   sts3032.unLockEprom(ARM_SERVO_ID);
@@ -180,13 +195,31 @@ void loop() {
       if (motor_L_val < -9999 || motor_L_val > 9999 || motor_R_val < -9999 || motor_R_val > 9999) {
         serial.sendMessage(Message(msg.getId(), "MOTOR out of range"));
       } else {
-        for (uint8_t i : motor_L) {
-          sts3032.WriteSpe(i, motor_L_val);
+        for (const Wheel& w : wheels) {
+          const int16_t v = (w.side < 0) ? motor_L_val : motor_R_val;
+          sts3032.WriteSpe(w.id, static_cast<int16_t>(v * w.dir));
         }
-        uint8_t right_servos[2] = {3, 4};
-        for (int i = 0; i < 2; ++i) {
-          sts3032.WriteSpe(right_servos[i], motor_R_val);
-        }
+        serial.sendMessage(Message(msg.getId(), "ok"));
+      }
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
+  }
+
+  // Bench probe: drives one servo by raw ID, bypassing wheels[], so a wheel
+  // that turns the wrong way can be traced to an ID (and a duplicated or
+  // missing ID shows up as two wheels moving, or none). "WHEEL 3 800" spins
+  // servo 3, "WHEEL 3 0" stops it. IDs are 1-4; the arm servo is not in wheel
+  // mode and must never be driven by speed.
+  else if (message.startsWith("WHEEL")) {
+    int16_t wheel_id = 0;
+    int16_t wheel_val = 0;
+
+    if (sscanf(message.c_str(), "WHEEL %hd %hd", &wheel_id, &wheel_val) == 2) {
+      if (wheel_id < 1 || wheel_id > 4 || wheel_val < -9999 || wheel_val > 9999) {
+        serial.sendMessage(Message(msg.getId(), "WHEEL out of range"));
+      } else {
+        sts3032.WriteSpe(static_cast<uint8_t>(wheel_id), wheel_val);
         serial.sendMessage(Message(msg.getId(), "ok"));
       }
     } else {
