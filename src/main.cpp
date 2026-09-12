@@ -1,6 +1,7 @@
 #include <Adafruit_BNO055.h>
 #include <Adafruit_Sensor.h>
 #include <Arduino.h>
+#include <ESP32Servo.h>
 #include <HX711.h>
 #include <SMS_STS.h>
 #include <VL53L0X.h>
@@ -80,6 +81,7 @@ SMS_STS sts3032;
 VL53L0X ToF[ToF_count];
 HX711 load_R, load_L;
 BUZZERIO buzzer(BUZZER_PIN, BUZZER_CHANEL);
+Servo cage_servo;
 
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
 bool bnoInitialized = false;
@@ -165,7 +167,9 @@ void setup() {
   load_R.reset();
   load_L.reset();
 
-  pinMode(CAGE_PIN, OUTPUT);
+  // pinMode(CAGE_PIN, OUTPUT);
+  cage_servo.attach(CAGE_PIN, 500, 2500);
+  cage_servo.write(0);
 
   buzzer.beep(1000, 100);
 }
@@ -322,10 +326,10 @@ void loop() {
     char mes;
     if (sscanf(message.c_str(), "CAGE %c", &mes) == 1) {
       if (mes == 'O') {
-        digitalWrite(CAGE_PIN, HIGH);
+        cage_servo.write(180);
         serial.sendMessage(Message(msg.getId(), "ok"));
       } else if (mes == 'C') {
-        digitalWrite(CAGE_PIN, LOW);
+        cage_servo.write(0);
         serial.sendMessage(Message(msg.getId(), "ok"));
       } else {
         serial.sendMessage(Message(msg.getId(), "Invalid format"));
