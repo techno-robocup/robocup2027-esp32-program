@@ -112,13 +112,13 @@ void setup() {
   Wire.begin(21, 22, 400000);
   delay(50);
 
-//   // 2. Shut down all ToF lines immediately to clean the I2C bus environment
-//   for (size_t i = 0; i < xShut_count; ++i) {
-//     if (xShutPins[i] >= 0) {
-//       holdXshut(xShutPins[i]);
-//     }
-//   }
-//   delay(50);
+  // 2. Shut down all ToF lines immediately to clean the I2C bus environment
+  for (size_t i = 0; i < xShut_count; ++i) {
+    if (xShutPins[i] >= 0) {
+      holdXshut(xShutPins[i]);
+    }
+  }
+  delay(50);
 
   // 3. Initialize the Adafruit BNO055 while the ToF sensors are asleep
   if (bno.begin()) {
@@ -130,37 +130,37 @@ void setup() {
     serial.sendMessage(Message(0, "BNO init failed"));
   }
 
-//   // 4. Now systematically wake up and change addresses for ToF sensors
-//   uint8_t nextAddress = 0x30;
-//   for (size_t idx = 0; idx < ToF_count; ++idx) {
-//     if (idx < xShut_count && xShutPins[idx] >= 0) {
-//       releaseXshut(xShutPins[idx]);
-//       delay(20);
-//     }
-// 
-//     ToF[idx].setTimeout(500);
-//     bool ok = false;
-// 
-//     for (int attempt = 0; attempt < 10 && !ok; ++attempt) {
-//       ok = ToF[idx].init();
-//       if (!ok) {
-//         delay(50);
-//       }
-//     }
-// 
-//     if (ok) {
-//       if (idx < xShut_count && xShutPins[idx] < 0) {
-//         serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (Default Address: 0x29)"));
-//       } else {
-//         ToF[idx].setAddress(nextAddress);
-//         serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (New Address: 0x" +
-//                                           String(nextAddress, HEX) + ")"));
-//         nextAddress++;
-//       }
-//     } else {
-//       serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
-//     }
-//   }
+  // 4. Now systematically wake up and change addresses for ToF sensors
+  uint8_t nextAddress = 0x30;
+  for (size_t idx = 0; idx < ToF_count; ++idx) {
+    if (idx < xShut_count && xShutPins[idx] >= 0) {
+      releaseXshut(xShutPins[idx]);
+      delay(20);
+    }
+
+    ToF[idx].setTimeout(500);
+    bool ok = false;
+
+    for (int attempt = 0; attempt < 10 && !ok; ++attempt) {
+      ok = ToF[idx].init();
+      if (!ok) {
+        delay(50);
+      }
+    }
+
+    if (ok) {
+      if (idx < xShut_count && xShutPins[idx] < 0) {
+        serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (Default Address: 0x29)"));
+      } else {
+        ToF[idx].setAddress(nextAddress);
+        serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (New Address: 0x" +
+                                          String(nextAddress, HEX) + ")"));
+        nextAddress++;
+      }
+    } else {
+      serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
+    }
+  }
 
 //   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
 //   load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
@@ -271,51 +271,53 @@ void loop() {
     }
   }
 
-//   else if (message.startsWith("TOF")) {
-//     char dir;
-//     String r_message = "";
-//     if (sscanf(message.c_str(), "TOF %c", &dir) == 1) {
-//       if (dir == 'l') {
-//         r_message = "ok ";
-//         for (size_t i = 0; i < sizeof(tof_L); ++i) {
-//           uint8_t idx = tof_L[i];
-//           if (idx < ToF_count) {
-//             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
-//             r_message += String(dist) + " ";
-//           } else {
-//             r_message += "0 ";
-//           }
-//         }
-//       } else if (dir == 'r') {
-//         r_message = "ok ";
-//         for (size_t i = 0; i < sizeof(tof_R); ++i) {
-//           uint8_t idx = tof_R[i];
-//           if (idx < ToF_count) {
-//             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
-//             r_message += String(dist) + " ";
-//           } else {
-//             r_message += "0 ";
-//           }
-//         }
-//       } else if (dir == 'f') {
-//         r_message = "ok ";
-//         for (size_t i = 0; i < sizeof(tof_F); ++i) {
-//           uint8_t idx = tof_F[i];
-//           if (idx < ToF_count) {
-//             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
-//             r_message += String(dist) + " ";
-//           } else {
-//             r_message += "0 ";
-//           }
-//         }
-//       } else {
-//         r_message = "Invalid format";
-//       }
-//       serial.sendMessage(Message(msg.getId(), r_message));
-//     } else {
-//       serial.sendMessage(Message(msg.getId(), "Invalid format"));
-//     }
-//   } else if (message.startsWith("LOAD")) {
+  else if (message.startsWith("TOF")) {
+    char dir;
+    String r_message = "";
+    if (sscanf(message.c_str(), "TOF %c", &dir) == 1) {
+      if (dir == 'l') {
+        r_message = "ok ";
+        for (size_t i = 0; i < sizeof(tof_L); ++i) {
+          uint8_t idx = tof_L[i];
+          if (idx < ToF_count) {
+            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+            r_message += String(dist) + " ";
+          } else {
+            r_message += "0 ";
+          }
+        }
+      } else if (dir == 'r') {
+        r_message = "ok ";
+        for (size_t i = 0; i < sizeof(tof_R); ++i) {
+          uint8_t idx = tof_R[i];
+          if (idx < ToF_count) {
+            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+            r_message += String(dist) + " ";
+          } else {
+            r_message += "0 ";
+          }
+        }
+      } else if (dir == 'f') {
+        r_message = "ok ";
+        for (size_t i = 0; i < sizeof(tof_F); ++i) {
+          uint8_t idx = tof_F[i];
+          if (idx < ToF_count) {
+            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+            r_message += String(dist) + " ";
+          } else {
+            r_message += "0 ";
+          }
+        }
+      } else {
+        r_message = "Invalid format";
+      }
+      serial.sendMessage(Message(msg.getId(), r_message));
+    } else {
+      serial.sendMessage(Message(msg.getId(), "Invalid format"));
+    }
+  }
+
+//   else if (message.startsWith("LOAD")) {
 //     long long load_L_val = load_L.get_value() / 100;
 //     long long load_R_val = load_R.get_value() / 100;
 //     serial.sendMessage(
