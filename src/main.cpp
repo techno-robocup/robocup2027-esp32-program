@@ -79,6 +79,9 @@ static_assert(ToF_count == xShut_count, "Mismatch between ToF_count and xShut_co
 
 SMS_STS sts3032;
 VL53L0X ToF[ToF_count];
+// Set in setup() for each sensor that initialized; a sensor that is unplugged
+// (I2C and XSHUT both disconnected) stays false and is never read.
+bool tofReady[ToF_count] = {};
 HX711 load_R, load_L;
 BUZZERIO buzzer(BUZZER_PIN, BUZZER_CHANEL);
 Servo cage_servo;
@@ -148,6 +151,7 @@ void setup() {
       }
     }
 
+    tofReady[idx] = ok;
     if (ok) {
       if (idx < xShut_count && xShutPins[idx] < 0) {
         serial.sendMessage(Message(0, "ToF " + String(idx) + " init ok (Default Address: 0x29)"));
@@ -158,7 +162,12 @@ void setup() {
         nextAddress++;
       }
     } else {
-      serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed"));
+      // Put it back to sleep: a sensor that is present but failed init would
+      // still sit at 0x29 and collide with the next one woken up.
+      if (idx < xShut_count && xShutPins[idx] >= 0) {
+        holdXshut(xShutPins[idx]);
+      }
+      serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed, skipping"));
     }
   }
 
@@ -279,33 +288,33 @@ void loop() {
         r_message = "ok ";
         for (size_t i = 0; i < sizeof(tof_L); ++i) {
           uint8_t idx = tof_L[i];
-          if (idx < ToF_count) {
+          if (idx >= ToF_count) {
+            r_message += "0 ";
+          } else if (tofReady[idx]) {
             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
             r_message += String(dist) + " ";
-          } else {
-            r_message += "0 ";
           }
         }
       } else if (dir == 'r') {
         r_message = "ok ";
         for (size_t i = 0; i < sizeof(tof_R); ++i) {
           uint8_t idx = tof_R[i];
-          if (idx < ToF_count) {
+          if (idx >= ToF_count) {
+            r_message += "0 ";
+          } else if (tofReady[idx]) {
             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
             r_message += String(dist) + " ";
-          } else {
-            r_message += "0 ";
           }
         }
       } else if (dir == 'f') {
         r_message = "ok ";
         for (size_t i = 0; i < sizeof(tof_F); ++i) {
           uint8_t idx = tof_F[i];
-          if (idx < ToF_count) {
+          if (idx >= ToF_count) {
+            r_message += "0 ";
+          } else if (tofReady[idx]) {
             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
             r_message += String(dist) + " ";
-          } else {
-            r_message += "0 ";
           }
         }
       } else {
