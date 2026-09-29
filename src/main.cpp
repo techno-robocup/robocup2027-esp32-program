@@ -171,14 +171,14 @@ void setup() {
     }
   }
 
-//   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
-//   load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
-//   load_R.reset();
-//   load_L.reset();
+  //   load_R.begin(LOAD_R_PIN[0], LOAD_R_PIN[1]);
+  //   load_L.begin(LOAD_L_PIN[0], LOAD_L_PIN[1]);
+  //   load_R.reset();
+  //   load_L.reset();
 
   // pinMode(CAGE_PIN, OUTPUT);
   cage_servo.attach(CAGE_PIN, 500, 2500);
-  cage_servo.write(0);
+  cage_servo.write(90);
 
   buzzer.beep(1000, 100);
 }
@@ -326,12 +326,13 @@ void loop() {
     }
   }
 
-//   else if (message.startsWith("LOAD")) {
-//     long long load_L_val = load_L.get_value() / 100;
-//     long long load_R_val = load_R.get_value() / 100;
-//     serial.sendMessage(
-//         Message(msg.getId(), String("ok") + " " + String(load_L_val) + " " + String(load_R_val)));
-//   }
+  //   else if (message.startsWith("LOAD")) {
+  //     long long load_L_val = load_L.get_value() / 100;
+  //     long long load_R_val = load_R.get_value() / 100;
+  //     serial.sendMessage(
+  //         Message(msg.getId(), String("ok") + " " + String(load_L_val) + " " +
+  //         String(load_R_val)));
+  //   }
 
   else if (message.startsWith("CAGE")) {
     char mes;
@@ -340,7 +341,7 @@ void loop() {
         cage_servo.write(180);
         serial.sendMessage(Message(msg.getId(), "ok"));
       } else if (mes == 'C') {
-        cage_servo.write(0);
+        cage_servo.write(90);
         serial.sendMessage(Message(msg.getId(), "ok"));
       } else {
         serial.sendMessage(Message(msg.getId(), "Invalid format"));
