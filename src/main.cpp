@@ -33,16 +33,20 @@ constexpr int8_t PIN_TX = 16;  // ESP32 GPIO17 (TX2) -> FE-URT-2 UART RX
 // were shipped sharing ID 1, so one WriteSpe drives both, and nothing on the
 // bus answers to ID 3. Re-ID the rear-left servo to 3 (one servo at a time on
 // the bus, or the duplicate ID makes reads collide) and this becomes the
-// expected four-row table with {3, -1, +1} for it.
+// expected four-row table with {3, -1, +1, true} for it, and ID 1's encoder
+// can be switched on too.
+//   encoder: whether ODOM reads this servo's position. Off for ID 1: both left
+//            servos answer a read at once and the replies collide.
 struct Wheel {
   uint8_t id;
   int8_t side;
   int8_t dir;
+  bool encoder;
 };
 const Wheel wheels[] = {
-    {1, -1, +1},  // both left wheels (duplicate ID)
-    {2, +1, -1},  // rear right
-    {4, +1, -1},  // front right
+    {1, -1, +1, false},  // both left wheels (duplicate ID)
+    {2, +1, -1, true},   // rear right
+    {4, +1, -1, true},   // front right
 };
 constexpr size_t motor_count = sizeof(wheels) / sizeof(wheels[0]);
 
@@ -78,6 +82,54 @@ constexpr size_t ToF_count = 4;
 static_assert(ToF_count == xShut_count, "Mismatch between ToF_count and xShut_count");
 
 SMS_STS sts3032;
+
+// Wheel odometry for ODOM. In wheel mode the STS3032 still reports its shaft
+// angle, 0..4095 per revolution; updateEncoders() unwraps that into a running
+// step count per wheel, signed with dir so that forward is positive. The
+// unwrap assumes less than half a revolution between samples: at the servo's
+// ~3000 steps/s top speed that is ~0.6 s, so a loop() stalled on a ToF read is
+// harmless. The counts start at 0 on every boot.
+constexpr unsigned long ENC_PERIOD_MS = 10;
+int32_t encCount[motor_count] = {};
+int16_t encLast[motor_count] = {};
+bool encSeen[motor_count] = {};
+
+static void updateEncoders() {
+  for (size_t i = 0; i < motor_count; ++i) {
+    if (!wheels[i].encoder) {
+      continue;
+    }
+    const int pos = sts3032.ReadPos(wheels[i].id);
+    if (pos < 0 || pos > 4095) {
+      continue;  // no reply: keep the count, the next sample picks up the delta
+    }
+    if (encSeen[i]) {
+      int delta = pos - encLast[i];
+      if (delta > 2048) {
+        delta -= 4096;
+      } else if (delta < -2048) {
+        delta += 4096;
+      }
+      encCount[i] += delta * wheels[i].dir;
+    }
+    encLast[i] = static_cast<int16_t>(pos);
+    encSeen[i] = true;
+  }
+}
+
+// Mean count of one side's readable wheels, or "none" if it has none.
+static String sideCount(int8_t side) {
+  int64_t sum = 0;
+  int n = 0;
+  for (size_t i = 0; i < motor_count; ++i) {
+    if (wheels[i].side == side && encSeen[i]) {
+      sum += encCount[i];
+      ++n;
+    }
+  }
+  return n > 0 ? String(static_cast<long>(sum / n)) : String("none");
+}
+
 VL53L0X ToF[ToF_count];
 // Set in setup() for each sensor that initialized; a sensor that is unplugged
 // (I2C and XSHUT both disconnected) stays false and is never read.
@@ -197,6 +249,12 @@ void loop() {
   static unsigned long last_beat = 0;
   static uint32_t beats = 0;
 
+  static unsigned long last_enc = 0;
+  if (millis() - last_enc >= ENC_PERIOD_MS) {
+    last_enc = millis();
+    updateEncoders();
+  }
+
   Message msg = serial.receiveMessage();
   String message = msg.getMessage();
 
@@ -278,6 +336,19 @@ void loop() {
     } else {
       serial.sendMessage(Message(msg.getId(), "BNO not initialized"));
     }
+  }
+
+  // Everything the Pi's line-trace odometry needs in one round trip, so the
+  // control loop pays for one extra command a tick instead of two:
+  // "ok <heading> <left> <right>" -- the BNO heading in degrees, then each
+  // side's mean wheel count in servo steps (4096 per revolution, forward
+  // positive). Any field the robot cannot supply reads "none".
+  else if (message.startsWith("ODOM")) {
+    updateEncoders();
+    const String heading =
+        bnoInitialized ? String(orientationEvent.orientation.x, 4) : String("none");
+    serial.sendMessage(
+        Message(msg.getId(), String("ok ") + heading + " " + sideCount(-1) + " " + sideCount(+1)));
   }
 
   else if (message.startsWith("TOF")) {
