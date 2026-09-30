@@ -293,6 +293,8 @@ void loop() {
           } else if (tofReady[idx]) {
             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
             r_message += String(dist) + " ";
+          } else {
+            r_message += "-1 ";
           }
         }
       } else if (dir == 'r') {
@@ -304,6 +306,8 @@ void loop() {
           } else if (tofReady[idx]) {
             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
             r_message += String(dist) + " ";
+          } else {
+            r_message += "-1 ";
           }
         }
       } else if (dir == 'f') {
@@ -315,6 +319,8 @@ void loop() {
           } else if (tofReady[idx]) {
             uint16_t dist = ToF[idx].readRangeSingleMillimeters();
             r_message += String(dist) + " ";
+          } else {
+            r_message += "-1 ";
           }
         }
       } else {
