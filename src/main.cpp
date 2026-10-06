@@ -59,7 +59,7 @@ constexpr int8_t CAGE_PIN = 32;
 
 // uint8_t xShutPins[] = {-1 ,14, 18, 19, 23, 5, 15}; -1 is default Address (do not use XSHUT)
 uint8_t xShutPins[] = {14, 15, 19, 5};
-uint8_t tof_L[] = {1, 0};
+uint8_t tof_L[] = {0, 1};
 uint8_t tof_R[] = {};
 uint8_t tof_F[] = {2, 3};
 constexpr size_t xShut_count = sizeof(xShutPins) / sizeof(xShutPins[0]);
