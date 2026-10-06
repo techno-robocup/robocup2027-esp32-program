@@ -44,9 +44,10 @@ struct Wheel {
   bool encoder;
 };
 const Wheel wheels[] = {
-    {1, -1, +1, false},  // both left wheels (duplicate ID)
-    {2, +1, -1, true},   // rear right
-    {4, +1, -1, true},   // front right
+    {1, -1, +1, true},  // left front
+    {2, +1, -1, true},  // right front
+    {3, -1, +1, true},  // left rear
+    {4, +1, -1, true},  // right rear
 };
 constexpr size_t motor_count = sizeof(wheels) / sizeof(wheels[0]);
 
