@@ -2,6 +2,7 @@
 #ifndef __ROBOT__BUZZERIO__HPP
 #define __ROBOT__BUZZERIO__HPP 1
 #include <Arduino.h>
+#include <cstdint>
 
 // Drives a passive speaker/buzzer with an LEDC PWM square wave.
 class BUZZERIO {
