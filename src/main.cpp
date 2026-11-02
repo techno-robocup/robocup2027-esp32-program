@@ -135,6 +135,23 @@ VL53L0X ToF[ToF_count];
 // Set in setup() for each sensor that initialized; a sensor that is unplugged
 // (I2C and XSHUT both disconnected) stays false and is never read.
 bool tofReady[ToF_count] = {};
+
+// One TOF reply field: -2 if the sensor never initialized (or idx is not a
+// sensor), -1 if it is initialized but this read failed (timeout or I2C
+// error), else the distance in mm.
+static String readToF(uint8_t idx) {
+  if (idx >= ToF_count || !tofReady[idx]) {
+    return "-2";
+  }
+  const uint16_t dist = ToF[idx].readRangeSingleMillimeters();
+  // timeoutOccurred() also clears the flag, so call it on every read.
+  const bool timedOut = ToF[idx].timeoutOccurred();
+  if (timedOut || ToF[idx].last_status != 0 || dist == 65535) {
+    return "-1";
+  }
+  return String(dist);
+}
+
 HX711 load_R, load_L;
 BUZZERIO buzzer(BUZZER_PIN, BUZZER_CHANEL);
 Servo cage_servo;
@@ -354,51 +371,29 @@ void loop() {
 
   else if (message.startsWith("TOF")) {
     char dir;
-    String r_message = "";
     if (sscanf(message.c_str(), "TOF %c", &dir) == 1) {
+      const uint8_t* group = nullptr;
+      size_t group_count = 0;
       if (dir == 'l') {
-        r_message = "ok ";
-        for (size_t i = 0; i < sizeof(tof_L); ++i) {
-          uint8_t idx = tof_L[i];
-          if (idx >= ToF_count) {
-            r_message += "0 ";
-          } else if (tofReady[idx]) {
-            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
-            r_message += String(dist) + " ";
-          } else {
-            r_message += "-1 ";
-          }
-        }
+        group = tof_L;
+        group_count = sizeof(tof_L);
       } else if (dir == 'r') {
-        r_message = "ok ";
-        for (size_t i = 0; i < sizeof(tof_R); ++i) {
-          uint8_t idx = tof_R[i];
-          if (idx >= ToF_count) {
-            r_message += "0 ";
-          } else if (tofReady[idx]) {
-            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
-            r_message += String(dist) + " ";
-          } else {
-            r_message += "-1 ";
-          }
-        }
+        group = tof_R;
+        group_count = sizeof(tof_R);
       } else if (dir == 'f') {
-        r_message = "ok ";
-        for (size_t i = 0; i < sizeof(tof_F); ++i) {
-          uint8_t idx = tof_F[i];
-          if (idx >= ToF_count) {
-            r_message += "0 ";
-          } else if (tofReady[idx]) {
-            uint16_t dist = ToF[idx].readRangeSingleMillimeters();
-            r_message += String(dist) + " ";
-          } else {
-            r_message += "-1 ";
-          }
-        }
-      } else {
-        r_message = "Invalid format";
+        group = tof_F;
+        group_count = sizeof(tof_F);
       }
-      serial.sendMessage(Message(msg.getId(), r_message));
+
+      if (group == nullptr) {
+        serial.sendMessage(Message(msg.getId(), "Invalid format"));
+      } else {
+        String r_message = "ok";
+        for (size_t i = 0; i < group_count; ++i) {
+          r_message += " " + readToF(group[i]);
+        }
+        serial.sendMessage(Message(msg.getId(), r_message));
+      }
     } else {
       serial.sendMessage(Message(msg.getId(), "Invalid format"));
     }

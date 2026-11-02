@@ -88,6 +88,10 @@ reply
 ok [distance(int, space splitted)]
 ```
 
+Every sensor in the group is always reported, in order. Each value is the
+distance in mm, `-1` if the sensor is initialized but the read failed
+(timeout / I2C error), or `-2` if the sensor was not initialized at boot.
+
 ### Load cell
 
 send
