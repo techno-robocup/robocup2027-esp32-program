@@ -154,6 +154,19 @@ static String readToF(uint8_t idx) {
 
 HX711 load_R, load_L;
 BUZZERIO buzzer(BUZZER_PIN, BUZZER_CHANEL);
+
+// Audible ToF init failure code: one long low tone, then `idx` short high
+// beeps, so the count after the long tone is the failed sensor's index (no
+// short beeps means ToF 0).
+static void beepToFFailure(size_t idx) {
+  buzzer.beep(220, 600);
+  delay(300);
+  for (size_t i = 0; i < idx; ++i) {
+    buzzer.beep(1500, 120);
+    delay(200);
+  }
+  delay(500);
+}
 Servo cage_servo;
 
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28);
@@ -238,6 +251,7 @@ void setup() {
         holdXshut(xShutPins[idx]);
       }
       serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed, skipping"));
+      beepToFFailure(idx);
     }
   }
 
