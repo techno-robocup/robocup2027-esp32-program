@@ -82,6 +82,10 @@ constexpr size_t ToF_count = 4;
 // static_assert(ToF_count == xShut_count + 1, "Mismatch between ToF_count and xShut_count");
 static_assert(ToF_count == xShut_count, "Mismatch between ToF_count and xShut_count");
 
+// How many times setup() tries to bring up each ToF sensor before giving up
+// on it, reporting the failure, and beeping its index.
+constexpr int TOF_INIT_ATTEMPTS = 5;
+
 SMS_STS sts3032;
 
 // Wheel odometry for ODOM. In wheel mode the STS3032 still reports its shaft
@@ -227,10 +231,21 @@ void setup() {
     ToF[idx].setTimeout(500);
     bool ok = false;
 
-    for (int attempt = 0; attempt < 10 && !ok; ++attempt) {
+    for (int attempt = 1; attempt <= TOF_INIT_ATTEMPTS && !ok; ++attempt) {
       ok = ToF[idx].init();
-      if (!ok) {
-        delay(50);
+      if (!ok && attempt < TOF_INIT_ATTEMPTS) {
+        serial.sendMessage(Message(0, "ToF " + String(idx) + " init attempt " + String(attempt) +
+                                          " failed, retrying"));
+        // Power-cycle the sensor through XSHUT so the next attempt starts
+        // from a clean boot rather than whatever state the failed init left.
+        if (idx < xShut_count && xShutPins[idx] >= 0) {
+          holdXshut(xShutPins[idx]);
+          delay(20);
+          releaseXshut(xShutPins[idx]);
+          delay(20);
+        } else {
+          delay(50);
+        }
       }
     }
 
@@ -250,7 +265,8 @@ void setup() {
       if (idx < xShut_count && xShutPins[idx] >= 0) {
         holdXshut(xShutPins[idx]);
       }
-      serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed, skipping"));
+      serial.sendMessage(Message(0, "ToF " + String(idx) + " init failed after " +
+                                        String(TOF_INIT_ATTEMPTS) + " attempts, skipping"));
       beepToFFailure(idx);
     }
   }
